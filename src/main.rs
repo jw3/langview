@@ -2,14 +2,27 @@ use clap::Parser;
 use gdk::{keys, EventKey};
 use gtk::prelude::*;
 use gtk::Window;
-use relm::{connect, Relm, Update, Widget};
+use relm::{connect, Channel, Relm, Update, Widget};
 use relm_derive::Msg;
 use sourceview::{Language, View as SourceView};
 use sourceview::{LanguageExt, LanguageManager, LanguageManagerExt};
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::Path;
 use tempfile::{tempfile, NamedTempFile, TempPath};
+
+use futures::{
+    channel::mpsc::{channel, Receiver},
+    SinkExt, StreamExt,
+};
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use std::error::Error;
+use std::future::Future;
+use std::path::Path;
+use std::thread;
+use std::thread::{JoinHandle, Thread};
+use std::time::Duration;
+
+type NotifyReceiver = Receiver<notify::Result<Event>>;
 
 #[derive(Parser)]
 pub struct Args {
@@ -31,6 +44,7 @@ pub enum Msg {
 pub struct State {
     lang: String,
     test: String,
+    channel: Channel<i32>,
 }
 
 pub struct App {
@@ -41,24 +55,39 @@ pub struct App {
 
 impl Update for App {
     type Model = State;
-    type ModelParam = (String, String);
+    type ModelParam = (String, String, NotifyReceiver);
     type Msg = Msg;
 
-    fn model(_: &Relm<Self>, (lang, test): Self::ModelParam) -> State {
-        State { lang, test }
+    fn model(relm: &Relm<Self>, (lang, test, mut recv): Self::ModelParam) -> State {
+        let stream = relm.stream().clone();
+        let (channel, sender) = Channel::new(move |num| {
+            stream.emit(Msg::Recompile);
+        });
+        let x = sender.clone();
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(500));
+            if recv.try_next().is_ok() {
+                sender.send(1);
+            }
+        });
+
+        State {
+            lang,
+            test,
+            channel,
+        }
     }
 
     fn update(&mut self, event: Msg) {
         match event {
             Msg::Recompile => {
-                println!("building");
                 let b = self.gui.render_view.get_buffer().unwrap();
                 let rendered = b
                     .get_text(&b.get_start_iter(), &b.get_end_iter(), false)
                     .unwrap()
                     .to_string();
 
-                let mut f = File::open(&self.state.test).unwrap();
+                let mut f = File::open(&self.state.lang).unwrap();
                 let mut lang_src = String::new();
                 f.read_to_string(&mut lang_src);
 
@@ -85,7 +114,6 @@ impl Compiler {
     fn compile_buffer(&self, txt: &str) -> sourceview::Buffer {
         let file = Path::new("/tmp/langview.lang");
         let mut file = File::create(file).unwrap();
-        println!("{}", txt);
         write!(file, "{}", txt);
 
         let lm = sourceview::LanguageManager::get_default().unwrap();
@@ -153,7 +181,24 @@ struct Widgets {
     main_window: Window,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Args = Args::parse();
-    App::run((args.lang.clone(), args.test.clone())).expect("App::run failed");
+
+    let (mut watcher, mut rx) = async_watcher()?;
+    watcher.watch(args.lang.as_ref(), RecursiveMode::Recursive)?;
+
+    App::run((args.lang.clone(), args.test.clone(), rx)).expect("App::run failed");
+
+    Ok(())
+}
+
+fn async_watcher() -> notify::Result<(RecommendedWatcher, NotifyReceiver)> {
+    let (mut tx, rx) = channel(1);
+    let watcher = RecommendedWatcher::new(move |res| {
+        futures::executor::block_on(async {
+            tx.send(res).await;
+        })
+    })?;
+
+    Ok((watcher, rx))
 }
