@@ -1,9 +1,6 @@
-use std::fs::File;
 use std::io::Write;
-use std::path::Path;
 
 use sourceview::{LanguageManager, LanguageManagerExt};
-use tempfile::NamedTempFile;
 
 pub(crate) struct Compiler {
     test_file: String,

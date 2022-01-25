@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
-use std::thread;
 use std::time::Duration;
+use std::{fs, thread};
 
 use gdk::keys::constants as Keys;
 use gdk::keys::Key;
@@ -43,13 +43,8 @@ impl Widget for Langview {
     type Root = Window;
 
     fn init_view(&mut self) {
-        let mut f = File::open(&self.state.lang).unwrap();
-        let mut lang_src = String::new();
-        f.read_to_string(&mut lang_src);
-
-        let mut f = File::open(&self.state.test).unwrap();
-        let mut test_txt = String::new();
-        f.read_to_string(&mut test_txt);
+        let lang_src = fs::read_to_string(&self.state.lang).unwrap();
+        let test_txt = fs::read_to_string(&self.state.test).unwrap();
 
         let buffer = self.compiler.compile_buffer(&lang_src);
         buffer.set_text(&test_txt);
@@ -130,19 +125,16 @@ impl Update for Langview {
                 }
             },
             Msg::Recompile => {
-                let b = self.gui.render_view.get_buffer().unwrap();
-                let rendered = b
-                    .get_text(&b.get_start_iter(), &b.get_end_iter(), false)
+                let live = self.gui.render_view.get_buffer().unwrap();
+                let rendered = live
+                    .get_text(&live.get_start_iter(), &live.get_end_iter(), false)
                     .unwrap()
                     .to_string();
 
-                let mut f = File::open(&self.state.lang).unwrap();
-                let mut lang_src = String::new();
-                f.read_to_string(&mut lang_src);
-
-                let b = self.compiler.compile_buffer(&lang_src);
-                b.set_text(&rendered);
-                self.gui.render_view.set_buffer(Some(&b))
+                let lang_src = fs::read_to_string(&self.state.lang).unwrap();
+                let lang_buff = self.compiler.compile_buffer(&lang_src);
+                lang_buff.set_text(&rendered);
+                self.gui.render_view.set_buffer(Some(&lang_buff))
             }
             Msg::Quit => gtk::main_quit(),
         }
