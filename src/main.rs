@@ -21,8 +21,8 @@ pub struct Args {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Args = Args::parse();
 
-    let (mut watcher, mut rx) = async_watcher()?;
-    watcher.watch(args.lang.as_ref(), RecursiveMode::Recursive)?;
+    let (mut watcher, rx) = async_watcher()?;
+    watcher.watch(args.lang.as_ref(), RecursiveMode::NonRecursive)?;
 
     Langview::run((args.lang.clone(), args.test.clone(), rx)).expect("App::run failed");
 

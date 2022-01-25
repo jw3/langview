@@ -22,7 +22,6 @@ pub struct Langview {
 pub struct State {
     lang: String,
     test: String,
-    channel: Channel<i32>,
 }
 
 struct Widgets {
@@ -98,22 +97,17 @@ impl Update for Langview {
 
     fn model(relm: &Relm<Self>, (lang, test, mut recv): Self::ModelParam) -> State {
         let stream = relm.stream().clone();
-        let (channel, sender) = Channel::new(move |num| {
-            stream.emit(Msg::Recompile);
+        let (_, sender) = Channel::new(move |msg| {
+            stream.emit(msg);
         });
-        let x = sender.clone();
         thread::spawn(move || loop {
             thread::sleep(Duration::from_millis(500));
             if recv.try_next().is_ok() {
-                sender.send(1);
+                sender.send(Msg::Recompile);
             }
         });
 
-        State {
-            lang,
-            test,
-            channel,
-        }
+        State { lang, test }
     }
 
     fn update(&mut self, event: Msg) {
