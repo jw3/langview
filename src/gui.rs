@@ -3,6 +3,9 @@ use std::io::Read;
 use std::thread;
 use std::time::Duration;
 
+use gdk::keys::constants as Keys;
+use gdk::keys::Key;
+use gdk::{ModifierType as KeyMod, ModifierType};
 use gtk::prelude::*;
 use gtk::Window;
 use relm::{connect, Channel, Relm, Update, Widget};
@@ -31,6 +34,7 @@ struct Widgets {
 
 #[derive(Msg)]
 pub enum Msg {
+    KeyPress(Key, ModifierType),
     Recompile,
     Quit,
 }
@@ -61,6 +65,16 @@ impl Widget for Langview {
         let builder = gtk::Builder::from_string(glade_src);
         let main_window: gtk::Window = builder.get_object("main_window").unwrap();
         let render_view: sourceview::View = builder.get_object("render_view").unwrap();
+
+        connect!(
+            relm,
+            main_window,
+            connect_key_press_event(_, key),
+            return (
+                Some(Msg::KeyPress(key.get_keyval(), key.get_state())),
+                Inhibit(false)
+            )
+        );
 
         connect!(
             relm,
@@ -109,6 +123,12 @@ impl Update for Langview {
 
     fn update(&mut self, event: Msg) {
         match event {
+            Msg::KeyPress(key, key_mod) => match (key, key_mod) {
+                (Keys::w, KeyMod::CONTROL_MASK) => gtk::main_quit(),
+                _ => {
+                    println!("{:?}", key_mod)
+                }
+            },
             Msg::Recompile => {
                 let b = self.gui.render_view.get_buffer().unwrap();
                 let rendered = b
