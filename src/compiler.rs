@@ -5,28 +5,36 @@ use std::path::Path;
 use sourceview::{LanguageManager, LanguageManagerExt};
 
 pub(crate) struct Compiler {
-    lm: LanguageManager,
     test_file: String,
+    lang_search_paths: Vec<String>,
 }
 
 impl Compiler {
     pub(crate) fn new(test_file: String) -> Self {
-        let lm = sourceview::LanguageManager::get_default().unwrap();
-        let mut sp: Vec<String> = lm.get_search_path().iter().map(|s| s.to_string()).collect();
-        sp.push("/tmp".into());
-        let lm = sourceview::LanguageManagerBuilder::new()
-            .search_path(sp.into())
-            .build();
+        let mut lang_search_paths: Vec<String> = LanguageManager::get_default()
+            .unwrap()
+            .get_search_path()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        lang_search_paths.push("/tmp".into());
 
-        Self { lm, test_file }
+        Self {
+            lang_search_paths,
+            test_file,
+        }
     }
 
     pub fn compile_buffer(&self, txt: &str) -> sourceview::Buffer {
+        let lm = sourceview::LanguageManagerBuilder::new()
+            .search_path(self.lang_search_paths.clone())
+            .build();
+
         let file = Path::new("/tmp/langview.lang");
         let mut file = File::create(file).unwrap();
         write!(file, "{}", txt);
 
-        let test_lang = self.lm.guess_language(Some(&self.test_file), None).unwrap();
+        let test_lang = lm.guess_language(Some(&self.test_file), None).unwrap();
         sourceview::Buffer::new_with_language(&test_lang)
     }
 }
