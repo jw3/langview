@@ -3,6 +3,10 @@ name = "langview"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "langview"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "3.0", features = ["derive"] }
 gtk = { version = "0.9", features = ["v3_22"] }
