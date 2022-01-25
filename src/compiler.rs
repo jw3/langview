@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 use sourceview::{LanguageManager, LanguageManagerExt};
+use tempfile::NamedTempFile;
 
 pub(crate) struct Compiler {
     test_file: String,
@@ -17,6 +18,8 @@ impl Compiler {
             .iter()
             .map(|s| s.to_string())
             .collect();
+
+        // todo;; cli-opts to customize the temp dir
         lang_search_paths.push("/tmp".into());
 
         Self {
@@ -30,9 +33,9 @@ impl Compiler {
             .search_path(self.lang_search_paths.clone())
             .build();
 
-        let file = Path::new("/tmp/langview.lang");
-        let mut file = File::create(file).unwrap();
-        write!(file, "{}", txt);
+        // todo;; cli-opts to customize and persist the temp file
+        let file = tempfile::Builder::new().suffix(".lang").tempfile().unwrap();
+        write!(file.as_file(), "{}", txt);
 
         let test_lang = lm.guess_language(Some(&self.test_file), None).unwrap();
         sourceview::Buffer::new_with_language(&test_lang)
