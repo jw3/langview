@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Read;
 use std::time::Duration;
 use std::{fs, thread};
 
@@ -10,7 +8,7 @@ use gtk::prelude::*;
 use gtk::Window;
 use relm::{connect, Channel, Relm, Update, Widget};
 use relm_derive::Msg;
-use sourceview::View as SourceView;
+use sourceview::{BufferExt, View as SourceView};
 
 use crate::compiler::Compiler;
 use crate::watch::NotifyReceiver;
@@ -47,7 +45,9 @@ impl Widget for Langview {
         let test_txt = fs::read_to_string(&self.state.test).unwrap();
 
         let buffer = self.compiler.compile_buffer(&lang_src);
+        buffer.begin_not_undoable_action();
         buffer.set_text(&test_txt);
+        buffer.end_not_undoable_action();
         self.gui.render_view.set_buffer(Some(&buffer));
     }
 
@@ -133,7 +133,9 @@ impl Update for Langview {
 
                 let lang_src = fs::read_to_string(&self.state.lang).unwrap();
                 let lang_buff = self.compiler.compile_buffer(&lang_src);
+                lang_buff.begin_not_undoable_action();
                 lang_buff.set_text(&rendered);
+                lang_buff.end_not_undoable_action();
                 self.gui.render_view.set_buffer(Some(&lang_buff))
             }
             Msg::Quit => gtk::main_quit(),
