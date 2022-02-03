@@ -1,11 +1,9 @@
-use std::error::Error;
-
 use clap::Parser;
-use notify::{RecursiveMode, Watcher};
 use relm::Widget;
 
 use langview::gui::Langview;
 use langview::watch::async_watcher;
+use std::error::Error;
 
 #[derive(Parser)]
 pub struct Args {
@@ -21,8 +19,7 @@ pub struct Args {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Args = Args::parse();
 
-    let (mut watcher, rx) = async_watcher()?;
-    watcher.watch(args.lang.as_ref(), RecursiveMode::NonRecursive)?;
+    let (_watcher, rx) = async_watcher(&args.lang)?;
 
     Langview::run((args.lang.clone(), args.test.clone(), rx)).expect("App::run failed");
 
