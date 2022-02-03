@@ -19,3 +19,8 @@ tempfile = "3.3"
 crossbeam-channel = "0.4.0"
 notify = "5.0.0-pre.13"
 futures = "0.3"
+relaxng-model = { version = "0.1", git = "https://github.com/dholroyd/relaxng-rust" }
+relaxng-validator = { version = "0.1", git = "https://github.com/dholroyd/relaxng-rust" }
+xmlparser = "0.13"
+codemap = "0.1"
+codemap-diagnostic = "0.1"
